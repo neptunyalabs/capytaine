@@ -7,6 +7,8 @@ They are based on numpy solvers with a thin layer for the handling of Hierarchic
 
 import logging
 
+import os
+
 import numpy as np
 from scipy import linalg as sl
 from scipy.sparse import linalg as ssl
@@ -151,8 +153,13 @@ def gmres_no_fft(A, b):
     return x
 
 ##### GPU Solver #####
-try:
+class IgnoreGPUException(Exception):
+    pass
 
+try:
+    if not os.environ.get('CAPYTAINE_GPU',None) == 'True':
+        raise IgnoreGPUException()
+        
     import torch
     def solve_gpu(a:np.ndarray,b:np.ndarray)->np.ndarray:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -202,7 +209,13 @@ try:
             raise ValueError(f"Unrecognized type of matrix to solve: {A}")
 
     print(f'GPU available: {torch.cuda.get_device_name()}')
+except IgnoreGPUException:
+    pass
 except ImportError as e:
     LOG.debug(f'GPU solver not available. Install pytorch and cuda to enable. Error: {e}')
     gpu_direct = None
+
+except Exception as e:
+    LOG.debug(f'Unknown GPU Import Error: {e}')
+    gpu_direct = None    
 
